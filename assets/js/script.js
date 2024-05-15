@@ -1,66 +1,141 @@
-<!DOCTYPE html>
-<html lang="en">
+window.onload = function() {
+    initPage();
+};
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css">
-    <title>Weather Dashboard</title>
-</head>
+function initPage() {
+    const cityEl = document.getElementById("enter-city");
+    const searchEl = document.getElementById("search-button");
+    const clearEl = document.getElementById("clear-history");
+    const nameEl = document.getElementById("city-name");
+    const currentPicEl = document.getElementById("current-pic");
+    const currentTempEl = document.getElementById("temperature");
+    const currentHumidityEl = document.getElementById("humidity");
+    const currentWindEl = document.getElementById("wind-speed");
+    const currentUVEl = document.getElementById("UV-index");
+    const historyEl = document.getElementById("history");
+    var fivedayEl = document.getElementById("fiveday-header");
+    var todayweatherEl = document.getElementById("today-weather");
+    let searchHistory = JSON.parse(localStorage.getItem("search")) || [];
 
-<body>
-    <header class="container-fluid text-center text-white bg-dark p-2">
-        <h1 style="font-size: 36px;">Weather Dashboard</h1>
-    </header>
+    const APIKey = "84b79da5e5d7c92085660485702f4ce8";
 
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-lg-3 bg-light">
-                <h5 class="mt-1" style="font-size: 20px;">Search for a City:</h5>
-                <div class="input-group mb-3">
-                    <input id="enter-city" type="text" class="form-control" placeholder="Enter a city" aria-label="Enter a city">
-                    <div class="input-group-append">
-                        <button class="btn btn-primary" type="button" id="search-button">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </div>
-                </div>
-                <button class="btn btn-primary mb-3" type="button" id="clear-history" style="font-size: 16px;">Clear history</button>
-                <form id="history"></form>
-            </div>
-            <div class="col-lg-9">
-                <div class="row mr-0">
-                    <div class="col-lg-11 card m-3 d-none" id="today-weather">
-                        <div class="card-body">
-                            <h3 id="city-name" class="city-name align-middle" style="font-size: 28px;"></h3>
-                            <img id="current-pic" alt="">
-                            <p id="temperature" style="font-size: 20px;"></p>
-                            <p id="humidity" style="font-size: 20px;"></p>
-                            <p id="wind-speed" style="font-size: 20px;"></p>
-                            <p id="UV-index" style="font-size: 20px;"></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="row d-none" id="fiveday-header">
-                    <div class="col-12">
-                        <h3 style="font-size: 24px;">5-Day Forecast</h3>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-2 forecast bg-primary text-white m-2 rounded"></div>
-                    <div class="col-md-2 forecast bg-primary text-white m-2 rounded"></div>
-                    <div class="col-md-2 forecast bg-primary text-white m-2 rounded"></div>
-                    <div class="col-md-2 forecast bg-primary text-white m-2 rounded"></div>
-                    <div class="col-md-2 forecast bg-primary text-white m-2 rounded"></div>
-                </div>
-            </div>
-        </div>
-    </div>
+    function getWeather(cityName) {
+        let queryURL = `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${APIKey}`;
+        axios.get(queryURL)
+            .then(function (response) {
+                todayweatherEl.classList.remove("d-none");
 
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <script src="./assets/script.js"></script>
-</body>
+                const currentDate = new Date(response.data.dt * 1000);
+                const day = currentDate.getDate();
+                const month = currentDate.getMonth() + 1;
+                const year = currentDate.getFullYear();
+                nameEl.innerHTML = `${response.data.name} (${month}/${day}/${year}) `;
+                let weatherPic = response.data.weather[0].icon;
+                currentPicEl.setAttribute("src", `https://openweathermap.org/img/wn/${weatherPic}@2x.png`);
+                currentPicEl.setAttribute("alt", response.data.weather[0].description);
+                currentTempEl.innerHTML = `Temperature: ${k2f(response.data.main.temp)} &#176F`;
+                currentHumidityEl.innerHTML = `Humidity: ${response.data.main.humidity}%`;
+                currentWindEl.innerHTML = `Wind Speed: ${response.data.wind.speed} MPH`;
 
-</html>
+                let lat = response.data.coord.lat;
+                let lon = response.data.coord.lon;
+                let UVQueryURL = `https://api.openweathermap.org/data/2.5/uvi/forecast?lat=${lat}&lon=${lon}&appid=${APIKey}&cnt=1`;
+                axios.get(UVQueryURL)
+                    .then(function (response) {
+                        let UVIndex = document.createElement("span");
+
+                        if (response.data[0].value < 4 ) {
+                            UVIndex.setAttribute("class", "badge badge-success");
+                        }
+                        else if (response.data[0].value < 8) {
+                            UVIndex.setAttribute("class", "badge badge-warning");
+                        }
+                        else {
+                            UVIndex.setAttribute("class", "badge badge-danger");
+                        }
+                        UVIndex.innerHTML = response.data[0].value;
+                        currentUVEl.innerHTML = "UV Index: ";
+                        currentUVEl.append(UVIndex);
+                    });
+
+                let cityID = response.data.id;
+                let forecastQueryURL = `https://api.openweathermap.org/data/2.5/forecast?id=${cityID}&appid=${APIKey}`;
+                axios.get(forecastQueryURL)
+                    .then(function (response) {
+                        fivedayEl.classList.remove("d-none");
+
+                        const forecastEls = document.querySelectorAll(".forecast");
+                        for (let i = 0; i < forecastEls.length; i++) {
+                            forecastEls[i].innerHTML = "";
+                            const forecastIndex = i * 8 + 4;
+                            const forecastDate = new Date(response.data.list[forecastIndex].dt * 1000);
+                            const forecastDay = forecastDate.getDate();
+                            const forecastMonth = forecastDate.getMonth() + 1;
+                            const forecastYear = forecastDate.getFullYear();
+                            const forecastDateEl = document.createElement("p");
+                            forecastDateEl.setAttribute("class", "mt-3 mb-0 forecast-date");
+                            forecastDateEl.innerHTML = `${forecastMonth}/${forecastDay}/${forecastYear}`;
+                            forecastEls[i].append(forecastDateEl);
+
+                            const forecastWeatherEl = document.createElement("img");
+                            forecastWeatherEl.setAttribute("src", `https://openweathermap.org/img/wn/${response.data.list[forecastIndex].weather[0].icon}@2x.png`);
+                            forecastWeatherEl.setAttribute("alt", response.data.list[forecastIndex].weather[0].description);
+                            forecastEls[i].append(forecastWeatherEl);
+                            const forecastTempEl = document.createElement("p");
+                            forecastTempEl.innerHTML = `Temp: ${k2f(response.data.list[forecastIndex].main.temp)} &#176F`;
+                            forecastEls[i].append(forecastTempEl);
+                            const forecastHumidityEl = document.createElement("p");
+                            forecastHumidityEl.innerHTML = `Humidity: ${response.data.list[forecastIndex].main.humidity}%`;
+                            forecastEls[i].append(forecastHumidityEl);
+                        }
+                    });
+            })
+            .catch(function (error) {
+                console.error("Error fetching weather data: ", error);
+                alert("City not found. Please try again.");
+            });
+    }
+
+    searchEl.addEventListener("click", function () {
+        const searchTerm = cityEl.value.trim();
+        if (searchTerm) {
+            getWeather(searchTerm);
+            if (!searchHistory.includes(searchTerm)) {
+                searchHistory.push(searchTerm);
+                localStorage.setItem("search", JSON.stringify(searchHistory));
+                renderSearchHistory();
+            }
+        }
+    });
+
+    clearEl.addEventListener("click", function () {
+        localStorage.clear();
+        searchHistory = [];
+        renderSearchHistory();
+    });s
+
+    function k2f(K) {
+        return Math.floor((K - 273.15) * 1.8 + 32);
+    }
+
+    function renderSearchHistory() {
+        historyEl.innerHTML = "";
+        for (let i = 0; i < searchHistory.length; i++) {
+            const historyItem = document.createElement("input");
+            historyItem.setAttribute("type", "text");
+            historyItem.setAttribute("readonly", true);
+            historyItem.setAttribute("class", "form-control d-block bg-white");
+            historyItem.setAttribute("value", searchHistory[i]);
+            historyItem.addEventListener("click", function () {
+                getWeather(historyItem.value);
+            });
+            historyEl.append(historyItem);
+        }
+    }
+
+    renderSearchHistory();
+    if (searchHistory.length > 0) {
+        getWeather(searchHistory[searchHistory.length - 1]);
+    }
+}
+
